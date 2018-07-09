@@ -2,15 +2,15 @@
   "name": "archive-stream-to-s3",
   "version": "1.0.0",
   "description": "A stream for writing the contents of a tar file to AWS S3.",
-  "bin": {
-    "pie": "bin/pie"
-  },
   "scripts": {
     "test": "./node_modules/.bin/jest unit",
-    "build": "./node_modules/.bin/tsc",
+    "build": "rm -fr lib && ./node_modules/.bin/tsc",
     "it": "./node_modules/.bin/jest int",
-    "release": "./node_modules/.bin/release-it"
+    "release": "npm run lint && npm run build && ./node_modules/.bin/release-it",
+    "lint": "./node_modules/.bin/tslint"
   },
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "repository": "edeustace/archive-stream-to-s3.git",
   "engines": {
     "node": ">=9.4.0",

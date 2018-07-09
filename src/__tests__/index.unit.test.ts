@@ -4,36 +4,63 @@ import { createStream } from "./create-stream";
 
 const log = debug("archive-stream-to-s3:test");
 describe("ArchiveStreamToS3", () => {
-  test(
-    "works",
-    done => {
-      const s3 = {
-        putObject: jest.fn(opts => ({
-          promise: jest.fn(() => {
-            return new Promise((resolve, reject) => {
-              opts.Body.resume();
-              setTimeout(() => {
-                // we are assuming that s3 sdk drains the stream - so simulate it here
-                resolve({ Key: "Foo" });
-              }, 1000);
-            });
-          })
-        }))
-      };
-      const toS3 = new ArchiveStreamToS3("bucket", "prefix", s3 as any, []);
+  let s3;
 
-      toS3.on("finish", () => {
-        log("finish: ");
-        done();
+  beforeEach(() => {
+    s3 = {
+      upload: jest.fn(opts => ({
+        promise: jest.fn(() => {
+          return new Promise(resolve => {
+            opts.Body.resume();
+            setTimeout(() => {
+              // we are assuming that s3 sdk drains the stream - so simulate it here
+              resolve({ Key: opts.Key });
+            }, 200);
+          });
+        })
+      }))
+    };
+  });
+
+  const pipe = (data: any, ignore: RegExp[] = []) =>
+    new Promise((resolve, reject) => {
+      const toS3 = new ArchiveStreamToS3("bucket", "prefix", s3 as any, ignore);
+
+      toS3.on("finish", (result: any) => {
+        resolve(result);
       });
 
       toS3.on("error", e => {
-        log("error: ", e);
-        done(e);
+        reject(e);
       });
-      const demo = createStream();
+
+      const demo = createStream(data);
       demo.pipe(toS3);
-    },
-    10000
-  );
+    });
+
+  it("pipes 2 files", () =>
+    pipe({ "one.txt": "one", "two.txt": "two" })
+      .then((result: any) => {
+        log("results:", result);
+        expect(result.keys[0]).toEqual("prefix/one.txt");
+        expect(result.keys[1]).toEqual("prefix/two.txt");
+      })
+      .catch(e => fail(e.message)));
+
+  it("fixes bad paths", () =>
+    pipe({ "one//one.txt": "one" })
+      .then((result: any) => {
+        log("results:", result);
+        expect(result.keys[0]).toEqual("prefix/one/one.txt");
+      })
+      .catch(e => fail(e.message)));
+
+  it("uses the ignore array", () =>
+    pipe(
+      { "one.txt": "one", "two.txt": "two" },
+      [/one\.txt/]
+    ).then((result: any) => {
+      expect(result.keys.length).toEqual(1);
+      expect(result.keys[0]).toEqual("prefix/two.txt");
+    }));
 });

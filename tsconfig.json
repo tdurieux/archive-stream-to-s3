@@ -8,7 +8,9 @@
     "sourceMap": true,
     "outDir": "lib/",
     "target": "es6",
-    "noUnusedLocals": true
+    "noUnusedLocals": true,
+    "declaration": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/**/__tests__/*"]
 }

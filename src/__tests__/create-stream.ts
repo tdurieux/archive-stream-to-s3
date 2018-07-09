@@ -1,9 +1,12 @@
 import * as tar from "tar-stream";
 
-export const createStream = () => {
+export const createStream = (data: any) => {
   const pack = tar.pack(); // pack is a streams2 stream
-  pack.entry({ name: "my-test.txt" }, "Hello World!");
-  pack.entry({ name: "two.txt" }, "Hello World!!!");
+
+  Object.keys(data).forEach((k: string) => {
+    pack.entry({ name: k }, data[k]);
+  });
+
   pack.finalize();
   return pack;
 };

@@ -3,7 +3,7 @@ import { Writable, Readable } from "stream";
 import * as tar from "tar-stream";
 import * as debug from "debug";
 import { lookup } from "mime-types";
-import { extname } from "path";
+import { extname, normalize } from "path";
 
 const log = debug("archive-stream-to-s3");
 
@@ -14,7 +14,7 @@ export class ArchiveStreamToS3 extends Writable {
     readonly bucket: string,
     readonly prefix: string,
     readonly s3: S3,
-    readonly ignore?: RegExp[]
+    readonly ignores: RegExp[] = []
   ) {
     super();
     this.extract = tar.extract();
@@ -24,6 +24,7 @@ export class ArchiveStreamToS3 extends Writable {
     this.extract.on("error", e => {
       this.emit("error", e);
     });
+
     this.extract.on("finish", () => {
       log("promises", this.promises);
       Promise.all(this.promises).then(arr => {
@@ -46,24 +47,32 @@ export class ArchiveStreamToS3 extends Writable {
     return true;
   }
 
+  private ignore(name: string): boolean {
+    return this.ignores.find(r => r.test(name)) !== undefined;
+  }
+
   private onEntry(header, stream: Readable, next: () => void) {
     log("onEntry", header.name);
-    // log("onEntry, header:", header);
-    const p: Promise<S3.ManagedUpload.SendData> = this.s3
-      .upload({
-        Body: stream,
-        Bucket: this.bucket,
-        ContentType: lookup(extname(header.name)),
-        Key: `${this.prefix}/${header.name}`
-      })
-      .promise();
-
-    this.promises.push(p);
 
     stream.on("error", next);
     stream.on("end", () => {
       log("call end for", header.name);
       next();
     });
+
+    if (this.ignore(header.name)) {
+      stream.resume();
+    } else {
+      const p: Promise<S3.ManagedUpload.SendData> = this.s3
+        .upload({
+          Body: stream,
+          Bucket: this.bucket,
+          ContentType: lookup(extname(header.name)),
+          Key: normalize(`${this.prefix}/${header.name}`)
+        })
+        .promise();
+
+      this.promises.push(p);
+    }
   }
 }

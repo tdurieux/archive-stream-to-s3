@@ -1,6 +1,6 @@
 {
   "name": "archive-stream-to-s3",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A stream for writing the contents of a tar file to AWS S3.",
   "scripts": {
     "test": "./node_modules/.bin/jest unit",

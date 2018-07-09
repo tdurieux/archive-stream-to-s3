@@ -1,0 +1,49 @@
+{
+  "name": "archive-stream-to-s3",
+  "version": "1.0.0",
+  "description": "A stream for writing the contents of a tar file to AWS S3.",
+  "bin": {
+    "pie": "bin/pie"
+  },
+  "scripts": {
+    "test": "./node_modules/.bin/jest unit",
+    "build": "./node_modules/.bin/tsc",
+    "it": "./node_modules/.bin/jest int",
+    "release": "./node_modules/.bin/release-it"
+  },
+  "repository": "edeustace/archive-stream-to-s3.git",
+  "engines": {
+    "node": ">=9.4.0",
+    "npm": ">=5.6.0"
+  },
+  "keywords": [
+    "tar",
+    "tgz",
+    "stream",
+    "s3"
+  ],
+  "author": "ed.eustace@gmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ed-eustace/archive-stream-to-s3/issues"
+  },
+  "homepage": "https://github.com/ed-eustace/archive-stream-to-s3#readme",
+  "devDependencies": {
+    "@types/jest": "^23.1.4",
+    "@types/node": "^10.5.2",
+    "@types/tar-stream": "^1.6.0",
+    "conventional-changelog-cli": "^2.0.1",
+    "jest": "^23.3.0",
+    "release-it": "^7.4.7",
+    "ts-jest": "^23.0.0",
+    "tslint": "^5.10.0",
+    "typescript": "^2.9.2"
+  },
+  "dependencies": {
+    "debug": "^3.1.0",
+    "gunzip-maybe": "^1.4.1",
+    "tar-stream": "^1.6.1",
+    "aws-sdk": "^2.270.1",
+    "mime-types": "^2.1.18"
+  }
+}

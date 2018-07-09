@@ -7,7 +7,7 @@
     "build": "rm -fr lib && ./node_modules/.bin/tsc",
     "it": "./node_modules/.bin/jest int",
     "release": "npm run lint && npm run build && ./node_modules/.bin/release-it",
-    "lint": "./node_modules/.bin/tslint"
+    "lint": "./node_modules/.bin/tslint -p tsconfig.json"
   },
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",

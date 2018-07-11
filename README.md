@@ -45,3 +45,9 @@ You'll also need the aws-cli commands on your path.
 ```shell
 npm run it
 ```
+
+# Release
+
+```shell
+npm run release
+```

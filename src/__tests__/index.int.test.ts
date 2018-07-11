@@ -60,6 +60,7 @@ const download = (...names: string[]) => {
 
 describe("archive-stream-to-s3", () => {
   let result;
+
   beforeAll(async () => {
     await initBucket(bucket);
     result = await pipe();
@@ -68,9 +69,9 @@ describe("archive-stream-to-s3", () => {
   it("works", () => {
     expect(result.keys).toEqual([`${prefix}/one.txt`, `${prefix}/two.txt`]);
   });
-  it.only("file contents match", async () => {
-    const downloaded = await download(`${prefix}/one.txt`, `${prefix}/two.txt`);
 
+  it("file contents match", async () => {
+    const downloaded = await download(`${prefix}/one.txt`, `${prefix}/two.txt`);
     expect(downloaded[0]).toEqual("one");
     expect(downloaded[1]).toEqual("two");
   });

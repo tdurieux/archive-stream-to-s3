@@ -13,7 +13,7 @@
   "types": "./lib/index.d.ts",
   "repository": "edeustace/archive-stream-to-s3.git",
   "engines": {
-    "node": ">=8.1.0"
+    "node": ">=8.10.0"
   },
   "keywords": [
     "tar",

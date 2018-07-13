@@ -2,6 +2,8 @@ A stream for writing the contents of a tar file to s3
 
 # Usage
 
+## With Writable
+
 ```javascript
 const { ArchiveStreamToS3 } = require("archive-stream-to-s3");
 const gunzip = require("gunzip-maybe");
@@ -22,6 +24,20 @@ const archive = fs.createReadStream("archive.tgz");
 
 //Note: if you have compressed archive you can decompress w/ gunzip-maybe.
 archive.pipe(gunzip()).pipe(toS3);
+```
+
+## With Promise
+
+You can also use the `promise` function that has gunzip built in.
+
+```javascript
+const { promise } = require("archive-stream-to-s3");
+
+const archive = fs.createReadStream("archive.tgz");
+
+promise("my-bucket", "prefix", s3, archive).then(result => {
+  console.log(result); //=> { keys: [...]}
+});
 ```
 
 # Contributing

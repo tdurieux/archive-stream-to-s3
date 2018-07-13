@@ -4,8 +4,30 @@ import * as tar from "tar-stream";
 import * as debug from "debug";
 import { lookup } from "mime-types";
 import { extname, normalize } from "path";
+import * as gunzip from "gunzip-maybe";
 
 const log = debug("archive-stream-to-s3");
+
+export const promise = (
+  bucket: string,
+  prefix: string,
+  s3: S3,
+  stream: Readable,
+  ignores: RegExp[]
+): Promise<any> =>
+  new Promise((resolve, reject) => {
+    const toS3 = new ArchiveStreamToS3(bucket, prefix, s3, ignores);
+
+    toS3.on("finish", (result: any) => {
+      resolve(result);
+    });
+
+    toS3.on("error", e => {
+      reject(e);
+    });
+
+    stream.pipe(gunzip()).pipe(toS3);
+  });
 
 export class ArchiveStreamToS3 extends Writable {
   private extract: Writable;
@@ -59,17 +81,22 @@ export class ArchiveStreamToS3 extends Writable {
       log("call end for", header.name);
       next();
     });
-
-    if (this.ignore(header.name)) {
+    if (header.type === "directory" || this.ignore(header.name)) {
       stream.resume();
     } else {
+      const contentType = lookup(extname(header.name));
+
+      const params: any = {
+        Body: stream,
+        Bucket: this.bucket,
+        Key: normalize(`${this.prefix}/${header.name}`)
+      };
+
+      if (contentType) {
+        params.ContentType = contentType;
+      }
       const p: Promise<S3.ManagedUpload.SendData> = this.s3
-        .upload({
-          Body: stream,
-          Bucket: this.bucket,
-          ContentType: lookup(extname(header.name)),
-          Key: normalize(`${this.prefix}/${header.name}`)
-        })
+        .upload(params)
         .promise();
 
       this.promises.push(p);

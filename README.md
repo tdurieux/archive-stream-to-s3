@@ -8,7 +8,7 @@ A stream for writing the contents of a tar file to s3
 const { ArchiveStreamToS3 } = require("archive-stream-to-s3");
 const gunzip = require("gunzip-maybe");
 
-const toS3 = new ArchiveStreamToS3("my-bucket", "some/prefix/to/add", s3, [
+const toS3 = new ArchiveStreamToS3({bucket: "my-bucket", prefix: "some/prefix/to/add", s3, type: "zip", ignores: [
   /.*foo.txt$/
 ]);
 
@@ -20,7 +20,7 @@ toS3.on("error", e => {
   console.error(e);
 });
 
-const archive = fs.createReadStream("archive.tgz");
+const archive = fs.createReadStream("archive.zip");
 
 //Note: if you have compressed archive you can decompress w/ gunzip-maybe.
 archive.pipe(gunzip()).pipe(toS3);
@@ -35,7 +35,13 @@ const { promise } = require("archive-stream-to-s3");
 
 const archive = fs.createReadStream("archive.tgz");
 
-promise("my-bucket", "prefix", s3, archive).then(result => {
+promise({
+  bucket: "my-bucket",
+  prefix: "prefix",
+  s3: s3,
+  stream: archive,
+  type: "tar",
+}).then((result) => {
   console.log(result); //=> { keys: [...]}
 });
 ```

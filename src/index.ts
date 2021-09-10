@@ -24,13 +24,8 @@ interface Option {
 interface OptionPromise extends Option {
   stream: Readable;
 }
-export const promise = (opt: OptionPromise): Promise<any> => {
-  const pipe = promisify(pipeline);
-  const toS3 = new ArchiveStreamToS3(opt);
-  return pipe(opt.stream, gunzip, toS3);
-};
 
-export class ArchiveStreamToS3 extends Writable {
+export default class ArchiveStreamToS3 extends Writable {
   private tarExtract?: Writable;
   private zipExtract?: NodeJS.WritableStream & NodeJS.ReadableStream;
   private promises: Promise<S3.ManagedUpload.SendData>[];
@@ -48,6 +43,12 @@ export class ArchiveStreamToS3 extends Writable {
       this.tarExtract.on("finish", this.onFinish.bind(this));
     }
     this.promises = [];
+  }
+
+  public static promise(opt: OptionPromise) {
+    const pipe = promisify(pipeline);
+    const toS3 = new ArchiveStreamToS3(opt);
+    return pipe(opt.stream, gunzip, toS3);
   }
 
   public end(...args: any[]): void {

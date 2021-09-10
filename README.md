@@ -5,7 +5,7 @@ A stream for writing the contents of a tar file to s3
 ## With Writable
 
 ```javascript
-const { ArchiveStreamToS3 } = require("archive-stream-to-s3");
+const ArchiveStreamToS3 = require("archive-stream-to-s3");
 const gunzip = require("gunzip-maybe");
 
 const toS3 = new ArchiveStreamToS3({bucket: "my-bucket", prefix: "some/prefix/to/add", s3, type: "zip", ignores: [
@@ -31,11 +31,11 @@ archive.pipe(gunzip()).pipe(toS3);
 You can also use the `promise` function that has gunzip built in.
 
 ```javascript
-const { promise } = require("archive-stream-to-s3");
+const ArchiveStreamToS3 = require("archive-stream-to-s3");
 
 const archive = fs.createReadStream("archive.tgz");
 
-promise({
+ArchiveStreamToS3.promise({
   bucket: "my-bucket",
   prefix: "prefix",
   s3: s3,

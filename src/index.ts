@@ -73,11 +73,16 @@ export default class ArchiveStreamToS3 extends Writable {
 
   private onFinish() {
     log("promises", this.promises);
-    Promise.all(this.promises).then((arr) => {
-      log("call finish!");
-      const keys = arr.map((a) => a.Key);
-      this.emit("finish", { keys });
-    });
+    Promise.all(this.promises).then(
+      (arr) => {
+        log("call finish!");
+        const keys = arr.map((a) => a.Key);
+        this.emit("finish", { keys });
+      },
+      (err) => {
+        this.emit("error", err);
+      }
+    );
   }
 
   private onError(e) {

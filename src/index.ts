@@ -10,16 +10,21 @@ import * as gunzip from "gunzip-maybe";
 
 const log = debug("archive-stream-to-s3");
 
+interface Header {
+  name: string;
+  type: "directory" | "file";
+  size: number;
+  Tagging?: S3.TaggingHeader;
+  Metadata?: S3.Metadata;
+}
+
 interface Option {
   bucket: string;
   prefix: string;
   s3: S3;
   type?: "tar" | "zip";
   ignores?: RegExp[];
-  onEntry?: (
-    header: { name: string; type: "file" | "directory"; size: number },
-    stream: Readable
-  ) => void;
+  onEntry?: (header: Header, stream: Readable) => void;
 }
 interface OptionPromise extends Option {
   stream: Readable;
@@ -101,13 +106,7 @@ export default class ArchiveStreamToS3
   }
 
   private onZipEntry(entry: unzip.Entry) {
-    const header: {
-      name: string;
-      type: "directory" | "file";
-      size: number;
-      Tagging?: S3.TaggingHeader;
-      Metadata?: S3.Metadata;
-    } = {
+    const header: Header = {
       name: entry.path,
       type: entry.type === "Directory" ? "directory" : "file",
       size: entry.size,
@@ -147,7 +146,7 @@ export default class ArchiveStreamToS3
     this.promises.push(p);
   }
 
-  private onEntry(header, stream: Readable, next: () => void) {
+  private onEntry(header: Header, stream: Readable, next: () => void) {
     log("onEntry", header.name);
     if (this.opt.onEntry) {
       this.opt.onEntry(header, stream);
@@ -168,6 +167,12 @@ export default class ArchiveStreamToS3
         Bucket: this.opt.bucket,
         Key: normalize(`${this.opt.prefix}/${header.name}`),
       };
+      if (header.Tagging) {
+        params.Tagging = header.Tagging;
+      }
+      if (header.Metadata) {
+        params.Metadata = header.Metadata;
+      }
 
       if (contentType) {
         params.ContentType = contentType;

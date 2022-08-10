@@ -25,7 +25,10 @@ interface OptionPromise extends Option {
   stream: Readable;
 }
 
-export default class ArchiveStreamToS3 extends Writable {
+export default class ArchiveStreamToS3
+  extends Writable
+  implements NodeJS.WritableStream
+{
   private tarExtract?: Writable;
   private zipExtract?: NodeJS.WritableStream & NodeJS.ReadableStream;
   private promises: Promise<S3.ManagedUpload.SendData>[];
@@ -51,12 +54,13 @@ export default class ArchiveStreamToS3 extends Writable {
     return pipe(opt.stream, gunzip, toS3);
   }
 
-  public end(...args: any[]): void {
+  public end(_?: any): any {
     if (this.opt.type === "zip") {
       this.zipExtract.end();
     } else {
       this.tarExtract.end();
     }
+    return this as any;
   }
 
   public write(...args: any[]): boolean {

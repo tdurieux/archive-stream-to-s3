@@ -101,11 +101,15 @@ export default class ArchiveStreamToS3
   }
 
   private onZipEntry(entry: unzip.Entry) {
-    const header = {
+    const header: {
+      name: string;
+      type: "directory" | "file";
+      size: number;
+      Tagging?: S3.TaggingHeader;
+      Metadata?: S3.Metadata;
+    } = {
       name: entry.path,
-      type: (entry.type === "Directory" ? "directory" : "file") as
-        | "directory"
-        | "file",
+      type: entry.type === "Directory" ? "directory" : "file",
       size: entry.size,
     };
     log("onEntry", entry.path);
@@ -126,6 +130,12 @@ export default class ArchiveStreamToS3
       Bucket: this.opt.bucket,
       Key: normalize(`${this.opt.prefix}/${header.name}`),
     };
+    if (header.Tagging) {
+      params.Tagging = header.Tagging;
+    }
+    if (header.Metadata) {
+      params.Metadata = header.Metadata;
+    }
 
     if (contentType) {
       params.ContentType = contentType;

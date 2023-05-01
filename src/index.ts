@@ -1,4 +1,4 @@
-import { S3 } from "aws-sdk";
+import { PutObjectCommand, PutObjectRequest, S3 } from "@aws-sdk/client-s3";
 import { Writable, Readable, pipeline } from "stream";
 import * as tar from "tar-stream";
 import * as unzip from "unzip-stream";
@@ -14,8 +14,8 @@ interface Header {
   name: string;
   type: "directory" | "file";
   size: number;
-  Tagging?: S3.TaggingHeader;
-  Metadata?: S3.Metadata;
+  Tagging?: string;
+  Metadata?: Record<string, string>;
 }
 
 interface Option {
@@ -36,7 +36,7 @@ export default class ArchiveStreamToS3
 {
   private tarExtract?: Writable;
   private zipExtract?: NodeJS.WritableStream & NodeJS.ReadableStream;
-  private promises: Promise<S3.ManagedUpload.SendData>[];
+  private promises: Promise<any>[];
   constructor(private readonly opt: Option) {
     super();
     if (opt.type === "zip") {
@@ -81,10 +81,8 @@ export default class ArchiveStreamToS3
   }
 
   private onFinish() {
-    log("promises", this.promises);
     Promise.all(this.promises).then(
       (arr) => {
-        log("call finish!");
         const keys = arr.map((a) => a.Key);
         this.emit("finish", { keys });
       },
@@ -94,7 +92,7 @@ export default class ArchiveStreamToS3
     );
   }
 
-  private onError(e) {
+  private onError(e: any) {
     this.emit("error", e);
   }
 
@@ -111,7 +109,6 @@ export default class ArchiveStreamToS3
       type: entry.type === "Directory" ? "directory" : "file",
       size: entry.size,
     };
-    log("onEntry", entry.path);
     if (this.opt.onEntry) {
       this.opt.onEntry(header, entry);
     }
@@ -122,66 +119,49 @@ export default class ArchiveStreamToS3
     if (entry.type === "Directory" || this.ignore(header.name)) {
       return entry.autodrain();
     }
-    const contentType = lookup(extname(header.name));
 
-    const params: S3.PutObjectRequest = {
+    const params: PutObjectRequest = {
       Body: entry,
       Bucket: this.opt.bucket,
       Key: normalize(`${this.opt.prefix}/${header.name}`),
+      Tagging: header.Tagging,
+      Metadata: header.Metadata,
     };
-    if (header.Tagging) {
-      params.Tagging = header.Tagging;
-    }
-    if (header.Metadata) {
-      params.Metadata = header.Metadata;
-    }
 
+    const contentType = lookup(extname(header.name));
     if (contentType) {
       params.ContentType = contentType;
     }
-    const p: Promise<S3.ManagedUpload.SendData> = this.opt.s3
-      .upload(params)
-      .promise();
 
-    this.promises.push(p);
+    this.promises.push(this.opt.s3.putObject(params));
   }
 
   private onEntry(header: Header, stream: Readable, next: () => void) {
-    log("onEntry", header.name);
     if (this.opt.onEntry) {
       this.opt.onEntry(header, stream);
     }
 
     stream.on("error", next);
     stream.on("end", () => {
-      log("call end for", header.name);
       next();
     });
+
     if (header.type === "directory" || this.ignore(header.name)) {
       stream.resume();
     } else {
       const contentType = lookup(extname(header.name));
 
-      const params: any = {
+      const params: PutObjectRequest = {
         Body: stream,
         Bucket: this.opt.bucket,
         Key: normalize(`${this.opt.prefix}/${header.name}`),
       };
-      if (header.Tagging) {
-        params.Tagging = header.Tagging;
-      }
-      if (header.Metadata) {
-        params.Metadata = header.Metadata;
-      }
 
       if (contentType) {
         params.ContentType = contentType;
       }
-      const p: Promise<S3.ManagedUpload.SendData> = this.opt.s3
-        .upload(params)
-        .promise();
-
-      this.promises.push(p);
+      const command = new PutObjectCommand(params);
+      this.promises.push(this.opt.s3.send(command));
     }
   }
 }

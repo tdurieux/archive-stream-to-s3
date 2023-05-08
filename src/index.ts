@@ -112,7 +112,7 @@ export default class ArchiveStreamToS3
     if (this.opt.onEntry) {
       this.opt.onEntry(header, entry);
     }
-    entry.on("error", this.onEntry);
+    entry.on("error", (e) => this.onError(e));
     entry.on("end", () => {
       log("call end for", header.name);
     });
@@ -133,7 +133,8 @@ export default class ArchiveStreamToS3
       params.ContentType = contentType;
     }
 
-    this.promises.push(this.opt.s3.putObject(params));
+    const command = new PutObjectCommand(params);
+    this.promises.push(this.opt.s3.send(command));
   }
 
   private onEntry(header: Header, stream: Readable, next: () => void) {
@@ -141,7 +142,10 @@ export default class ArchiveStreamToS3
       this.opt.onEntry(header, stream);
     }
 
-    stream.on("error", next);
+    stream.on("error", (e) => {
+      this.onError(e);
+      next();
+    });
     stream.on("end", () => {
       next();
     });

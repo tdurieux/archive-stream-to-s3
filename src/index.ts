@@ -1,4 +1,9 @@
-import { PutObjectCommand, PutObjectRequest, S3 } from "@aws-sdk/client-s3";
+import {
+  PutObjectCommand,
+  PutObjectCommandOutput,
+  PutObjectRequest,
+  S3,
+} from "@aws-sdk/client-s3";
 import { Writable, Readable, pipeline } from "stream";
 import * as tar from "tar-stream";
 import * as unzip from "unzip-stream";
@@ -25,6 +30,7 @@ interface Option {
   type?: "tar" | "zip";
   ignores?: RegExp[];
   onEntry?: (header: Header, stream: Readable) => void;
+  maxParallel?: number;
 }
 interface OptionPromise extends Option {
   stream: Readable;
@@ -36,7 +42,11 @@ export default class ArchiveStreamToS3
 {
   private tarExtract?: Writable;
   private zipExtract?: NodeJS.WritableStream & NodeJS.ReadableStream;
-  private promises: Promise<any>[];
+  private promises: Promise<PutObjectCommandOutput>[];
+  private commands: PutObjectCommand[];
+  private nbParallel: number = 0;
+  private ended: boolean = false;
+
   constructor(private readonly opt: Option) {
     super();
     if (opt.type === "zip") {
@@ -51,6 +61,10 @@ export default class ArchiveStreamToS3
       this.tarExtract.on("finish", this.onFinish.bind(this));
     }
     this.promises = [];
+    this.commands = [];
+    if (!opt.maxParallel) {
+      opt.maxParallel = 10;
+    }
   }
 
   public static promise(opt: OptionPromise) {
@@ -81,15 +95,7 @@ export default class ArchiveStreamToS3
   }
 
   private onFinish() {
-    Promise.all(this.promises).then(
-      (arr) => {
-        const keys = arr.map((a) => a.Key);
-        this.emit("finish", { keys });
-      },
-      (err) => {
-        this.emit("error", err);
-      }
-    );
+    this.ended = true;
   }
 
   private onError(e: any) {
@@ -134,7 +140,7 @@ export default class ArchiveStreamToS3
     }
 
     const command = new PutObjectCommand(params);
-    this.promises.push(this.opt.s3.send(command));
+    this.handleCommand(command);
   }
 
   private onEntry(header: Header, stream: Readable, next: () => void) {
@@ -165,7 +171,42 @@ export default class ArchiveStreamToS3
         params.ContentType = contentType;
       }
       const command = new PutObjectCommand(params);
-      this.promises.push(this.opt.s3.send(command));
+      this.handleCommand(command);
+    }
+  }
+
+  private async handleCommand(command: PutObjectCommand) {
+    if (this.nbParallel < this.opt.maxParallel) {
+      this.sendCommand(command);
+    } else {
+      this.commands.push(command);
+    }
+  }
+
+  private sendCommand(command: PutObjectCommand) {
+    this.nbParallel++;
+    const promise = this.opt.s3.send(command);
+    this.promises.push(promise);
+    promise.finally(() => {
+      this.nbParallel--;
+      this.onCommandEnd(command);
+    });
+  }
+
+  private onCommandEnd(ended: PutObjectCommand) {
+    this.emit("entryFinish", ended.input.Key);
+    const command = this.commands.shift();
+    if (command) {
+      this.sendCommand(command);
+    } else if (this.ended) {
+      Promise.all(this.promises).then(
+        (_) => {
+          this.emit("finish");
+        },
+        (err) => {
+          this.emit("error", err);
+        }
+      );
     }
   }
 }

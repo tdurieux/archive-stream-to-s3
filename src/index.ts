@@ -198,7 +198,7 @@ export default class ArchiveStreamToS3
     const command = this.commands.shift();
     if (command) {
       this.sendCommand(command);
-    } else if (this.ended) {
+    } else if (this.ended && this.nbParallel === 0) {
       Promise.all(this.promises).then(
         (_) => {
           this.emit("finish");
